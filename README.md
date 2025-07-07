@@ -9,7 +9,7 @@ My own simple remote key logger written in C. Uses winsock2 socket library for s
 
 ## Demo
 
-![](./res/Key-Logger-Demonstration.mp4)
+https://github.com/user-attachments/assets/aaf67876-dd61-4cf1-8482-60f5d314d0d3
 
 ## Usage
 1. Run server.exe on your local machine.
