@@ -5,6 +5,7 @@ My own simple remote key logger written in C. Uses winsock2 socket library for s
 - Catches all keystrokes, including those on the shift layer.
 - Displays keystrokes in real-time.
 - Displays the current foreground window as a header to the victim's keystrokes. The thought was that a person's keystrokes are only as valuable as the context of the current window they are typing in.
+- Time stamps for every window change and keystroke.
 - Color coding.
 
 ## Demo
